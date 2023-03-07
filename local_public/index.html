@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="index.css">
+    <script type="text/javascript" src="//media.twiliocdn.com/sdk/js/sync/v0.12/twilio-sync.min.js"></script>
+    <title>Note</title>
+</head>
+
+<body>
+    <h1>
+        Collab Note
+    </h1>
+    <div class="input-area-container">
+        <textarea id="notepad" class="input-area"></textarea>
+    </div>
+    
+    <script>
+        let notepad = document.getElementById('notepad')
+        let twilioSyncClient;
+    
+        fetch('/token')
+            .then(response => response.json())
+            .then(data => { 
+                
+                let token = data.token
+                let syncClient = new Twilio.Sync.Client(token)
+    
+                twilioSyncClient = syncClient
+                
+                twilioSyncClient.document('notepad')
+                    .then(function(document) {
+                        notepad.value = document.hasOwnProperty("value") ? document.value.content : "";
+    
+                        document.on('updated', function(event) {
+                            
+                            let cursorStartPos = notepad.selectionStart;
+                            let cursorEndPos = notepad.selectionEnd;
+                            
+                            notepad.value = event.value.content
+    
+                            notepad.selectionEnd = cursorEndPos
+    
+                            console.log('Received Document update event. New value:', event.value);
+                        })
+                    })
+                    .catch(function(error) {
+                        console.error('Unexpected error', error)
+                    });
+            })
+        
+        const syncNotepad = (syncClient) => {
+        
+            let notepadContent = document.getElementById('notepad').value
+    
+            twilioSyncClient.document('notepad').then(function(doc) {
+                doc.update({ content: notepadContent });
+            })
+            
+        }
+    
+        document.getElementById('notepad').addEventListener("keyup", (event) => {
+            const syncKeys = [32,13,8,188,190]  
+    
+            if(syncKeys.includes(event.keyCode)) {
+                syncNotepad(twilioSyncClient)
+            }
+        })
+    </script>
+    
+</body>
+
+</html>
